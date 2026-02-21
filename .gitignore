@@ -1,0 +1,6 @@
+.vscode/
+.__pycache__/
+output/
+.venv/
+tauv_data_gen_env/
+.python-version

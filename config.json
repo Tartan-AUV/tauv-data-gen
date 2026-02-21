@@ -1,0 +1,19 @@
+{
+    "frames" : 400,
+    "maxKeypoints" : 12,
+    "objects" :
+    [
+        {
+            "model" : "objects/gate.usdz",
+            "config" : "objects/gate.json",
+            "count" : 2
+        }
+    ],
+    "environmentObjects" : [
+        {
+            "model" : "objects/pool.usdz",
+            "position" : [0.0, 0.0, 0.0],
+            "euler" : [0.0, 0.0, 0.0]
+        }
+    ]
+}

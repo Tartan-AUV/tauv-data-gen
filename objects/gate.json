@@ -1,0 +1,117 @@
+{
+  "classID" : "0",
+  "className" : "gate",
+
+  "keypoints" : {
+    "topLeftCorner_kp": {
+      "position" : [3.111, -1.525, 0.017],
+      "keypointID" : 0,
+      "symmetryMode" : "horizontalSymmetry",
+      "symmetryDetails" : {
+        "side" : "left",
+        "symmetricWith" : "topRightCorner_kp"
+      }
+    },
+
+    "topRightCorner_kp": {
+      "position" : [-0.0375, -1.525, 0.017],
+      "keypointID" : 1,
+      "symmetryMode" : "horizontalSymmetry",
+      "symmetryDetails" : {
+        "side" : "right",
+        "symmetricWith" : "topLeftCorner_kp"
+      }
+    },
+
+    "bottomLeftCorner_kp": {
+      "position" : [3.062, 0.00035, 0.017],
+      "keypointID" : 2,
+      "symmetryMode" : "horizontalSymmetry",
+      "symmetryDetails" : {
+        "side" : "left",
+        "symmetricWith" : "bottomRightCorner_kp"
+      }
+    },
+
+    "bottomRightCorner_kp": {
+      "position" : [0.01243, 0.00035, 0.017],
+      "keypointID" : 3,
+      "symmetryMode" : "horizontalSymmetry",
+      "symmetryDetails" : {
+        "side" : "right",
+        "symmetricWith" : "bottomLeftCorner_kp"
+      }
+    },
+
+    "divider_kp": {
+      "position" : [1.535, -0.9, 0.01333],
+      "keypointID" : 4,
+      "symmetryMode" : "none"
+    }
+  },
+
+  "textureVariants" : [
+    {
+      "materialName" : "Image1",
+      "availableTextures" : [
+        "textures/gateImages/almonds.png", 
+        "textures/gateImages/apple.jpg", 
+        "textures/gateImages/apples.png", 
+        "textures/gateImages/balloons.png", 
+        "textures/gateImages/bananas.png", 
+        "textures/gateImages/billiards.png", 
+        "textures/gateImages/guitar.png", 
+        "textures/gateImages/lion.png", 
+        "textures/gateImages/keyboard.png", 
+        "textures/gateImages/multimeter.png", 
+        "textures/gateImages/orange.jpg", 
+        "textures/gateImages/pencils.png", 
+        "textures/gateImages/tools.png", 
+        "textures/gateImages/torpedo2025.png", 
+        "textures/gateImages/waterfall.jpeg", 
+        "textures/gateImages/wood.png"
+      ]
+    },
+    {
+      "materialName" : "Image2",
+      "availableTextures" : [
+        "textures/gateImages/almonds.png", 
+        "textures/gateImages/apple.jpg", 
+        "textures/gateImages/apples.png", 
+        "textures/gateImages/balloons.png", 
+        "textures/gateImages/bananas.png", 
+        "textures/gateImages/billiards.png", 
+        "textures/gateImages/guitar.png", 
+        "textures/gateImages/lion.png", 
+        "textures/gateImages/keyboard.png", 
+        "textures/gateImages/multimeter.png", 
+        "textures/gateImages/orange.jpg", 
+        "textures/gateImages/pencils.png", 
+        "textures/gateImages/tools.png", 
+        "textures/gateImages/torpedo2025.png", 
+        "textures/gateImages/waterfall.jpeg", 
+        "textures/gateImages/wood.png"
+      ]
+    },
+    {
+      "materialName" : "Plastic___Translucent_Matte__Blue_",
+      "availableTextures" : [
+        "textures/gateSides/Sprite-0001.png",
+        "textures/gateSides/Sprite-0002.png",
+        "textures/gateSides/Sprite-0003.png",
+        "textures/gateSides/Sprite-0004.png",
+        "textures/gateSides/Sprite-0005.png",
+        "textures/gateSides/Sprite-0006.png",
+        "textures/gateSides/Sprite-0007.png",
+        "textures/gateSides/Sprite-0008.png",
+        "textures/gateSides/Sprite-0009.png",
+        "textures/gateSides/Sprite-0010.png",
+        "textures/gateSides/Sprite-0011.png",
+        "textures/gateSides/Sprite-0012.png",
+        "textures/gateSides/Sprite-0013.png",
+        "textures/gateSides/Sprite-0014.png",
+        "textures/gateSides/Sprite-0015.png"
+      ]
+    }
+  ]
+}
