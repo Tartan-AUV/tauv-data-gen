@@ -113,23 +113,25 @@ def generate_data():
             # This pushes the randomized poses from Replicator into the USD Stage
             config.simulation_app.update()
 
-            # randomize textures
-            for model in modelRepItems:
-                prim = repConversions.replicator_item_to_prim(model)
-                prim_path = repConversions.prim_to_path(prim)
-                raw_class_name = get_semantic_class(prim)
-                class_name = re.sub(r'_\d+$', '', raw_class_name)
-
-                if not class_name in config.textureVariants:
-                    continue
-
-                for materialName in config.textureVariants[class_name]:
-                    materialTexturePath = f"{prim_path}/Ref/_materials/{materialName}/Image_Texture"
-                    texturePrim = repConversions.path_to_prim(materialTexturePath)
-                    randomTexturePath = os.path.abspath(random.choice(config.textureVariants[class_name][materialName]))
-                    set_unique_attribute(texturePrim, "inputs:file", Sdf.ValueTypeNames.Asset, Sdf.AssetPath(randomTexturePath))
+            randomizeTextures(modelRepItems)
             
             print(f"Captured Frame {i}")
+
+def randomizeTextures(modelRepItems):
+    for model in modelRepItems:
+        prim = repConversions.replicator_item_to_prim(model)
+        prim_path = repConversions.prim_to_path(prim)
+        raw_class_name = get_semantic_class(prim)
+        class_name = re.sub(r'_\d+$', '', raw_class_name)
+
+        if not class_name in config.textureVariants:
+            continue
+
+        for materialName in config.textureVariants[class_name]:
+            materialTexturePath = f"{prim_path}/Ref/_materials/{materialName}/Image_Texture"
+            texturePrim = repConversions.path_to_prim(materialTexturePath)
+            randomTexturePath = os.path.abspath(random.choice(config.textureVariants[class_name][materialName]))
+            set_unique_attribute(texturePrim, "inputs:file", Sdf.ValueTypeNames.Asset, Sdf.AssetPath(randomTexturePath))
 
 def load_objects():
     # load all the models

@@ -43,32 +43,10 @@ class KeypointWriter(rep.Writer):
     
     # TODO: Make not insane
     def write(self, data):
-        # post process with depth effect
+        postProcessedImage = self.makePostProcessedRGB(data)
 
-        # flatten the data before using it with warp since we don't care about x,y and this simplifies the logic
-        # to access a given pixel
-        rgb_flattened = data["rgb"].reshape(-1, 4).astype(np.float32)
-        rgb_flattened /= 255.0
-        depth_flattened = data["distance_to_camera"].reshape(-1).astype(np.float32)
-        rgb_in = wp.from_numpy(rgb_flattened, dtype=wp.vec4)
-        depth_in = wp.from_numpy(depth_flattened, dtype=float)
-        rgb_out = wp.zeros_like(rgb_in)
-
-        # scramble things a little
-        redRandAttenuate = random.uniform(0.10, 0.16)
-        greenRandAttenuate = random.uniform(0.10, 0.14)
-        blueRandAttenuate = random.uniform(0.09, 0.13)
-        redRandWaterColor = random.uniform(0.05, 0.15)
-        greenRandWaterColor = random.uniform(0.1, 0.35)
-        blueRandWaterColor = random.uniform(0.3, 0.45)
-
-        # Launch the kernel
-        wp.launch(kernel=recolor_kernel, 
-                  dim=len(rgb_in), 
-                  inputs=[rgb_in, depth_in, rgb_out, redRandAttenuate, greenRandAttenuate, blueRandAttenuate, redRandWaterColor, greenRandWaterColor, blueRandWaterColor])
-        
-        camera_params = data["camera_params"]
-        img_h, img_w = data["rgb"].shape[:2]
+        self.camera_params = data["camera_params"]
+        self.img_h, self.img_w = data["rgb"].shape[:2]
         
         bboxes = data["bounding_box_2d_tight"]["data"]
         bbox_paths = data["bounding_box_2d_tight"]["info"]["primPaths"]
@@ -76,7 +54,7 @@ class KeypointWriter(rep.Writer):
         omniverse_id_to_labels = data["bounding_box_2d_tight"]["info"]["idToLabels"]
 
         # set up camera stuff
-        camera_prim = self.stage.GetPrimAtPath(self._camera_path)
+        self.camera_prim = self.stage.GetPrimAtPath(self._camera_path)
 
         # write annotation
         annotation_path = os.path.join(self._output_dir, f"label_{self._frame_id}.txt")
@@ -84,10 +62,10 @@ class KeypointWriter(rep.Writer):
             # Loop through detected 'main' objects
             for i, bbox in enumerate(bboxes):
                 # Normalize Bbox into YOLO format: x_center, y_center, width, height
-                w = (bbox['x_max'] - bbox['x_min']) / img_w
-                h = (bbox['y_max'] - bbox['y_min']) / img_h
-                x_center = (bbox['x_min'] / img_w) + (w / 2)
-                y_center = (bbox['y_min'] / img_h) + (h / 2)
+                w = (bbox['x_max'] - bbox['x_min']) / self.img_w
+                h = (bbox['y_max'] - bbox['y_min']) / self.img_h
+                x_center = (bbox['x_min'] / self.img_w) + (w / 2)
+                y_center = (bbox['y_min'] / self.img_h) + (h / 2)
 
                 raw_class_name = omniverse_id_to_labels[str(bbox["semanticId"])]["class"]
                 class_name = re.sub(r'_\d+$', '', raw_class_name)
@@ -107,44 +85,9 @@ class KeypointWriter(rep.Writer):
                 # Iterate over children of bbox object (including keypoints) to find the projected coordinates of each
                 projected_keypoints = {}
                 for child_prim in Usd.PrimRange(parent_prim):
-                    # skip non xforms and non keypoints
-                    if (not child_prim.IsA(UsdGeom.Xform)) or (not child_prim.HasAttribute("keypointName")):
-                        continue
+                    self.handlePotentialKeypoint(class_name, child_prim, projected_keypoints)
 
-                    child_keypoint_name = get_attribute(child_prim, "keypointName")
-
-                    # skip children without semantics
-                    if child_keypoint_name == None:
-                        continue
-
-                    # skip children which are not keypoints of this class
-                    if not child_keypoint_name in config.classToKeypoints[class_name]:
-                        continue
-
-                    world_transform = omni.usd.get_world_transform_matrix(child_prim)
-                    world_pos = world_transform.ExtractTranslation()
-
-                    projected_keypoints[child_keypoint_name] = fisheye_project(camera_params, img_w, img_h, world_pos, camera_prim)
-
-                # fix symmetry pairs (i.e. if a "left" keypoint ends up on the right, flip them)
-                for symmetricKeypoint in config.horizontalSymmetryPairs:
-                    (leftClass, rightClass) = config.horizontalSymmetryPairs[symmetricKeypoint]
-                    if leftClass in projected_keypoints and rightClass in projected_keypoints:
-                        uLeft, _ = projected_keypoints[leftClass]
-                        uRight, _ = projected_keypoints[rightClass]
-                        if uRight < uLeft:
-                            # swap
-                            projected_keypoints[leftClass], projected_keypoints[rightClass] = projected_keypoints[rightClass], projected_keypoints[leftClass]
-
-                for symmetricKeypoint in config.verticalSymmetryPairs:
-                    (topClass, bottomClass) = config.verticalSymmetryPairs[symmetricKeypoint]
-                    if topClass in projected_keypoints and bottomClass in projected_keypoints:
-                        _, vBottom = projected_keypoints[topClass]
-                        _, vTop = projected_keypoints[bottomClass]
-                        # Note, higher v is lower in image
-                        if vBottom < vTop:
-                            # swap
-                            projected_keypoints[topClass], projected_keypoints[bottomClass] = projected_keypoints[topClass], projected_keypoints[bottomClass]
+                self.fixSymmetryPairs(projected_keypoints)
                 
                 # Get a list based on order of ID's
                 ordered_keypoints = [None] * config.maxKeypoints
@@ -168,14 +111,87 @@ class KeypointWriter(rep.Writer):
         f.close()
 
         # write rgb image
-        processed_rgb_out = (rgb_out.numpy() * 255.0).reshape((config.HEIGHT, config.WIDTH, 4))
-        np.clip(processed_rgb_out, 0.0, 255.0)
-        processed_rgb_out = processed_rgb_out.astype(np.uint8)
         image_path = f"rgb_{self._frame_id}.{self._image_output_format}"
-        self._backend.write_image(image_path, processed_rgb_out)
+        self._backend.write_image(image_path, postProcessedImage)
+
         # depth_path = f"depth_{self._frame_id}.{self._image_output_format}"
         # self._backend.write_image(depth_path, data["distance_to_camera"])
         self._frame_id += 1
+    
+    def handlePotentialKeypoint(self, class_name, child_prim, projected_keypoints):
+        # skip non xforms and non keypoints
+        if (not child_prim.IsA(UsdGeom.Xform)) or (not child_prim.HasAttribute("keypointName")):
+            return
+
+        child_keypoint_name = get_attribute(child_prim, "keypointName")
+
+        # skip children without semantics
+        if child_keypoint_name == None:
+            return
+
+        # skip children which are not keypoints of this class
+        if not child_keypoint_name in config.classToKeypoints[class_name]:
+            return
+
+        world_transform = omni.usd.get_world_transform_matrix(child_prim)
+        world_pos = world_transform.ExtractTranslation()
+
+        projected_keypoints[child_keypoint_name] = fisheye_project(self.camera_params, 
+                                                                   self.img_w, 
+                                                                   self.img_h, 
+                                                                   world_pos, 
+                                                                   self.camera_prim)
+
+    def fixSymmetryPairs(self, projected_keypoints):
+        # fix symmetry pairs (i.e. if a "left" keypoint ends up on the right, flip them)
+        for symmetricKeypoint in config.horizontalSymmetryPairs:
+            (leftClass, rightClass) = config.horizontalSymmetryPairs[symmetricKeypoint]
+            if leftClass in projected_keypoints and rightClass in projected_keypoints:
+                uLeft, _ = projected_keypoints[leftClass]
+                uRight, _ = projected_keypoints[rightClass]
+                if uRight < uLeft:
+                    # swap
+                    projected_keypoints[leftClass], projected_keypoints[rightClass] = projected_keypoints[rightClass], projected_keypoints[leftClass]
+
+        for symmetricKeypoint in config.verticalSymmetryPairs:
+            (topClass, bottomClass) = config.verticalSymmetryPairs[symmetricKeypoint]
+            if topClass in projected_keypoints and bottomClass in projected_keypoints:
+                _, vBottom = projected_keypoints[topClass]
+                _, vTop = projected_keypoints[bottomClass]
+                # Note, higher v is lower in image
+                if vBottom < vTop:
+                    # swap
+                    projected_keypoints[topClass], projected_keypoints[bottomClass] = projected_keypoints[topClass], projected_keypoints[bottomClass]
+
+    def makePostProcessedRGB(self, data):
+        # post process with depth effect
+
+        # flatten the data before using it with warp since we don't care about x,y and this simplifies the logic
+        # to access a given pixel
+        rgb_flattened = data["rgb"].reshape(-1, 4).astype(np.float32)
+        rgb_flattened /= 255.0
+        depth_flattened = data["distance_to_camera"].reshape(-1).astype(np.float32)
+        rgb_in = wp.from_numpy(rgb_flattened, dtype=wp.vec4)
+        depth_in = wp.from_numpy(depth_flattened, dtype=float)
+        rgb_out = wp.zeros_like(rgb_in)
+
+        # scramble things a little
+        redRandAttenuate = random.uniform(0.10, 0.16)
+        greenRandAttenuate = random.uniform(0.10, 0.14)
+        blueRandAttenuate = random.uniform(0.09, 0.13)
+        redRandWaterColor = random.uniform(0.05, 0.15)
+        greenRandWaterColor = random.uniform(0.1, 0.35)
+        blueRandWaterColor = random.uniform(0.3, 0.45)
+
+        # Launch the kernel
+        wp.launch(kernel=recolor_kernel, 
+                  dim=len(rgb_in), 
+                  inputs=[rgb_in, depth_in, rgb_out, redRandAttenuate, greenRandAttenuate, blueRandAttenuate, redRandWaterColor, greenRandWaterColor, blueRandWaterColor])
+
+        # reshape and format into rgb image
+        processed_rgb_out = (rgb_out.numpy() * 255.0).reshape((config.HEIGHT, config.WIDTH, 4))
+        np.clip(processed_rgb_out, 0.0, 255.0)
+        return processed_rgb_out.astype(np.uint8)
 
 # a warp kernel to recolor images to apply the underwater effect
 @wp.kernel

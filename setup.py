@@ -44,46 +44,50 @@ def load_training_info(prim, jsonPath, instanceNumber):
     if "keypoints" in jsonParse:
         for keypointName in jsonParse["keypoints"]:
             keypoint = jsonParse["keypoints"][keypointName]
-
-            if(not "position" in keypoint):
-                print(f"Keypoint {keypointName} in {className} is missing a position!")
-                continue
-            if(not "keypointID" in keypoint):
-                print(f"Keypoint {keypointName} in {className} is missing an ID!")
-                continue
-            if(keypointName in config.keypointToID and config.keypointToID[keypointName] != keypoint["keypointID"]):
-                print(f"Duplicated keypoint name {keypointName}!")
-                continue
-
-            add_keypoint(prim, 
-                         keypointName, 
-                         tuple(keypoint["position"]),
-                         instanceNumber)
+            make_keypoint(prim, className, keypoint, keypointName, instanceNumber)
+    
+    if "textureVariants" in jsonParse:
+        config.textureVariants[className] = {}
+        for variant in jsonParse["textureVariants"]:
+            if not "materialName" in variant:
+                print(f"Missing material name for texture variant in {className}!")
             
-            # Update ID dict
-            config.keypointToID[keypointName] = keypoint["keypointID"]
+            materialName = variant["materialName"]
+            availableTextures = variant["availableTextures"]
+            config.textureVariants[className][materialName] = availableTextures
+
             
-            # Update symmetry
-            if "symmetryMode" in keypoint:
-                if(keypoint["symmetryMode"] == "horizontalSymmetry"):
-                    update_horizontal_symmetry(keypoint, keypointName)
-                if(keypoint["symmetryMode"] == "verticalSymmetry"):
-                    update_vertical_symmetry(keypoint, keypointName)
 
-            # update keypoint/classes map
-            config.classToKeypoints[className].add(keypointName)
-        
-        if "textureVariants" in jsonParse:
-            config.textureVariants[className] = {}
-            for variant in jsonParse["textureVariants"]:
-                if not "materialName" in variant:
-                    print(f"Missing material name for texture variant in {className}!")
-                
-                materialName = variant["materialName"]
-                availableTextures = variant["availableTextures"]
-                config.textureVariants[className][materialName] = availableTextures
+def make_keypoint(classPrim, className, keypoint, keypointName, instanceNumber):
+    if(not "position" in keypoint):
+        print(f"Keypoint {keypointName} in {className} is missing a position!")
+        return
+    if(not "keypointID" in keypoint):
+        print(f"Keypoint {keypointName} in {className} is missing an ID!")
+        return
+    if(keypointName in config.keypointToID and config.keypointToID[keypointName] != keypoint["keypointID"]):
+        print(f"Duplicated keypoint name {keypointName}!")
+        return
 
-def add_keypoint(targetPrim, name, position, instanceNumber):
+    add_keypoint_to_target(classPrim, 
+                            keypointName, 
+                            tuple(keypoint["position"]),
+                            instanceNumber)
+    
+    # Update ID dict
+    config.keypointToID[keypointName] = keypoint["keypointID"]
+    
+    # Update symmetry
+    if "symmetryMode" in keypoint:
+        if(keypoint["symmetryMode"] == "horizontalSymmetry"):
+            update_horizontal_symmetry(keypoint, keypointName)
+        if(keypoint["symmetryMode"] == "verticalSymmetry"):
+            update_vertical_symmetry(keypoint, keypointName)
+
+    # update keypoint/classes map
+    config.classToKeypoints[className].add(keypointName)
+
+def add_keypoint_to_target(targetPrim, name, position, instanceNumber):
     keypointRepItem = None
 
     with rep.get.prims(path_pattern=str(targetPrim.GetPath())):
