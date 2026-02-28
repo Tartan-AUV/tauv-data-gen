@@ -57,7 +57,7 @@ class KeypointWriter(rep.Writer):
         self.camera_prim = self.stage.GetPrimAtPath(self._camera_path)
 
         # write annotation
-        annotation_path = os.path.join(self._output_dir, f"label_{self._frame_id}.txt")
+        annotation_path = os.path.join(self._output_dir, f"rgb_{self._frame_id}.txt")
         with open(annotation_path, "w") as f:
             # Loop through detected 'main' objects
             for i, bbox in enumerate(bboxes):
@@ -164,7 +164,7 @@ class KeypointWriter(rep.Writer):
                     projected_keypoints[topClass], projected_keypoints[bottomClass] = projected_keypoints[topClass], projected_keypoints[bottomClass]
 
     def makePostProcessedRGB(self, data):
-        # post process with depth effect
+        # Setup data for and invoke post processing
 
         # flatten the data before using it with warp since we don't care about x,y and this simplifies the logic
         # to access a given pixel
@@ -175,18 +175,10 @@ class KeypointWriter(rep.Writer):
         depth_in = wp.from_numpy(depth_flattened, dtype=float)
         rgb_out = wp.zeros_like(rgb_in)
 
-        # scramble things a little
-        redRandAttenuate = random.uniform(0.10, 0.16)
-        greenRandAttenuate = random.uniform(0.10, 0.14)
-        blueRandAttenuate = random.uniform(0.09, 0.13)
-        redRandWaterColor = random.uniform(0.05, 0.15)
-        greenRandWaterColor = random.uniform(0.1, 0.35)
-        blueRandWaterColor = random.uniform(0.3, 0.45)
-
         # Launch the kernel
         wp.launch(kernel=recolor_kernel, 
                   dim=len(rgb_in), 
-                  inputs=[rgb_in, depth_in, rgb_out, redRandAttenuate, greenRandAttenuate, blueRandAttenuate, redRandWaterColor, greenRandWaterColor, blueRandWaterColor])
+                  inputs=[rgb_in, depth_in, rgb_out])
 
         # reshape and format into rgb image
         processed_rgb_out = (rgb_out.numpy() * 255.0).reshape((config.HEIGHT, config.WIDTH, 4))
@@ -197,27 +189,11 @@ class KeypointWriter(rep.Writer):
 @wp.kernel
 def recolor_kernel(rgb: wp.array(dtype=wp.vec4), 
                    depth: wp.array(dtype=float), 
-                   out_rgb: wp.array(dtype=wp.vec4),
-                   attenuationR: float,
-                   attenuationG: float,
-                   attenuationB: float,
-                   finalR: float,
-                   finalG: float,
-                   finalB: float):
-    # Underwater image recoloring based on https://arxiv.org/html/2503.01074v2
-
+                   out_rgb: wp.array(dtype=wp.vec4)
+                   ):
     tid = wp.tid()
     
-    depthToPixel = depth[tid]
-    rWeight = wp.exp(-attenuationR * depthToPixel)
-    gWeight = wp.exp(-attenuationG * depthToPixel)
-    bWeight = wp.exp(-attenuationB * depthToPixel)
-
-    out_rgb[tid][0] = rgb[tid][0]*rWeight + finalR*(1.0-rWeight)
-    out_rgb[tid][1] = rgb[tid][1]*gWeight + finalG*(1.0-gWeight)
-    out_rgb[tid][2] = rgb[tid][2]*bWeight + finalB*(1.0-bWeight)
- 
-    out_rgb[tid][3] = 1.0
+    out_rgb[tid] = rgb[tid]
 
 # Projects using OpenCV fisheye parameters in camera_params
 def fisheye_project(camera_params, img_w, img_h, world_pos, camera_prim):

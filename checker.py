@@ -29,7 +29,7 @@ def visualize_yolo_pose(image_path, label_path):
     cv2.waitKey(0)
 
 def main():
-    visualize_yolo_pose("./output/rgb_" + sys.argv[1] + ".png", "./output/label_" + sys.argv[1] + ".txt")
+    visualize_yolo_pose("./output/rgb_" + sys.argv[1] + ".png", "./output/rgb_" + sys.argv[1] + ".txt")
 
 if __name__ == "__main__":
     main()

@@ -70,7 +70,7 @@ def generate_data():
         modelRepItems = load_objects()
         environmentObjects = setup.load_environment_objects()
 
-        # water_plane = setup_water_surface()
+        water, waterShader = setup_water()
 
         all_models = rep.create.group(modelRepItems)
         environment_models = rep.create.group(environmentObjects)
@@ -114,6 +114,8 @@ def generate_data():
             config.simulation_app.update()
 
             randomizeTextures(modelRepItems)
+
+            randomizeWaterShader(waterShader)
             
             print(f"Captured Frame {i}")
 
@@ -132,6 +134,17 @@ def randomizeTextures(modelRepItems):
             texturePrim = repConversions.path_to_prim(materialTexturePath)
             randomTexturePath = os.path.abspath(random.choice(config.textureVariants[class_name][materialName]))
             set_unique_attribute(texturePrim, "inputs:file", Sdf.ValueTypeNames.Asset, Sdf.AssetPath(randomTexturePath))
+
+def lerp(a, b, t):
+    return a + (b-a)*t
+
+def randomizeWaterShader(waterShader):
+    volumeAbsorption = lerp(0, 0.05, random.uniform(0, 1)**4)
+    transmissionRGB = (random.uniform(0.5, 0.7), random.uniform(0.6, 0.9), random.uniform(0.6, 0.95))
+    reflectionRGB = (random.uniform(0.85, 1), random.uniform(0.9, 1.0), random.uniform(0.95, 1.0))
+    set_unique_attribute(waterShader, "inputs:depth", Sdf.ValueTypeNames.Float, volumeAbsorption)
+    set_unique_attribute(waterShader, "inputs:transmission_color", Sdf.ValueTypeNames.Float3, transmissionRGB)
+    set_unique_attribute(waterShader, "inputs:reflection_color", Sdf.ValueTypeNames.Float3, reflectionRGB)
 
 def load_objects():
     # load all the models
@@ -169,23 +182,22 @@ def load_objects():
     
     return modelRepItems
 
-def setup_water_surface():
-    water_plane = rep.create.plane(scale=60, position=(0, 0, 0))
-
-    water_material = rep.create.material_omnipbr()
-
-    shaderPath = repConversions.replicator_item_to_path(water_material)+"/Shader"
-    shaderPrim = repConversions.path_to_prim(shaderPath)
-    set_unique_attribute(shaderPrim, "info:mdl:sourceAsset", Sdf.ValueTypeNames.String, "OmniGlass.mdl")
-    set_unique_attribute(shaderPrim, "info:mdl:sourceAsset:subIdentifier", Sdf.ValueTypeNames.String, "OmniGlass")
-    set_unique_attribute(shaderPrim, "inputs:glass_ior", Sdf.ValueTypeNames.Float, 1.33)
-    set_unique_attribute(shaderPrim, "inputs:thin_walled", Sdf.ValueTypeNames.Bool, True)
-    set_unique_attribute(shaderPrim, "inputs:reflection_color", Sdf.ValueTypeNames.Color3f, (1.0, 1.0, 1.0))
-
-    with water_plane:
-        rep.modify.material(water_material)
+def setup_water():
+    water = rep.create.cube(scale=(22.8, 49.5, 0.5), position=(0, 0, 0))
     
-    return water_plane
+    material_file_path = os.path.abspath("./water_material/Water/Water.mdl")
+
+    try:
+        rep.functional.create.material(material_file_path, repConversions.replicator_item_to_prim(water), "Water")
+    except:
+        # TODO: Figure out why the try block always fails for some reason
+        waterShader = repConversions.path_to_prim("/Water/Shader")
+        set_unique_attribute(waterShader, "info:mdl:sourceAsset:subIdentifier", Sdf.ValueTypeNames.String, "Water")
+    
+    with water:
+        rep.modify.material(["/Water"])
+
+    return water, waterShader
 
 def createLights():
     # We create lights like this because IsaacSim v5 has an issue where
@@ -194,7 +206,7 @@ def createLights():
     stage = omni.usd.get_context().get_stage()
     distant_path = "/World/DistantLight"
     distant_light = UsdLux.DistantLight.Define(stage, distant_path)
-    distant_light.CreateIntensityAttr(700.0)
+    distant_light.CreateIntensityAttr(1050.0)
     distant_light.CreateColorAttr((1.0, 1.0, 0.95))
     prim = stage.GetPrimAtPath(distant_path)
     UsdGeom.XformCommonAPI(prim).SetRotate((315.0, 0.0, 0.0))
@@ -202,8 +214,11 @@ def createLights():
 
     ambient_path = "/World/AmbientLight"
     dome_light = UsdLux.DomeLight.Define(stage, ambient_path)
-    dome_light.CreateIntensityAttr(100.0)
+    dome_light.CreateIntensityAttr(250.0)
     dome_light.CreateColorAttr((1.0, 1.0, 0.95))
+    skyPath = os.path.abspath("./skyboxes/evening_road_01_4k.hdr")
+    dome_light.CreateTextureFileAttr(Sdf.AssetPath(skyPath))
+    dome_light.CreateTextureFormatAttr("latlong")
 
 
 def camera_setup(camera):

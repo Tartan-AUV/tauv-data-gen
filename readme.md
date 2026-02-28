@@ -49,12 +49,9 @@ This is the TAUV submodule responsible for generating labelled synthetic data fo
 
 ## TODO:
 **Features:**
-- Improve underwater appearance by getting a proper water material instead of just attenuating towards a constant color.
 - Add a check to make sure keypoints aren't obstructed before writing them. This would involve comparing the depth of the keypoint to the depth listed at the same projected point in the depth map and seeing if it's within an acceptable tolerance which we would add to the keypoint config.
 - Add distractor objects.
 - Add a wider variety of objects to detect.
 
 **Structure:**
 - Reduce use of global variables (ideally to 0)
-- Break down functions which are too long or deeply nested (most notably KeypointWriter.write)
-- Split main.py into separate files for object loading, randomization, annotation writing, etc.
