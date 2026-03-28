@@ -17,8 +17,9 @@ from repUtils import get_attribute
 import config
 
 class KeypointWriter(rep.Writer):
-    def __init__(self, output_dir=None, camera_path=None, image_output_format="png"):
+    def __init__(self, output_dir=None, camera_path=None, image_output_format="png", image_radius = 0):
         self._output_dir = output_dir
+        self._image_radius = image_radius
 
         self.annotators = ["rgb", "bounding_box_2d_tight", "pointcloud", "camera_params", "distance_to_camera"]
         
@@ -31,10 +32,11 @@ class KeypointWriter(rep.Writer):
         self.stage = omni.usd.get_context().get_stage()
         self._frame_id = 0
     
-    def initialize(self, output_dir, camera_path, image_output_format="png"):
+    def initialize(self, output_dir, camera_path, image_output_format="png", image_radius = 0):
         self._output_dir = output_dir
         self._camera_path = camera_path
         self._image_output_format = image_output_format
+        self._image_radius = image_radius
         
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -43,8 +45,6 @@ class KeypointWriter(rep.Writer):
     
     # TODO: Make not insane
     def write(self, data):
-        postProcessedImage = self.makePostProcessedRGB(data)
-
         self.camera_params = data["camera_params"]
         self.img_h, self.img_w = data["rgb"].shape[:2]
         
@@ -75,7 +75,7 @@ class KeypointWriter(rep.Writer):
                     continue
 
                 class_id = config.classNameToID[class_name]
-                f.write(f"{class_id} {x_center:.6f} {y_center:.6f} {w:.6f} {h:.6f} ")
+                f.write(f"{class_id} {(self.fullToCroppedValue(x_center)):.6f} {(self.fullToCroppedValue(y_center)):.6f} {(self.rescaleFullToCropped(w)):.6f} {(self.rescaleFullToCropped(h)):.6f} ")
 
                 parent_path = bbox_paths[i]
                 parent_prim = self.stage.GetPrimAtPath(parent_path)
@@ -96,8 +96,8 @@ class KeypointWriter(rep.Writer):
 
                 for coords in ordered_keypoints:
                     if not coords == None:
-                        u, v = coords
-                        # write if on screen
+                        # write if on screen post crop
+                        u, v = self.fullToCroppedPoint(coords)
                         if 0 <= u <= 1 and 0 <= v <= 1:
                             f.write(f"{u:.6f} {v:.6f} 2 ")
                         else:
@@ -112,7 +112,8 @@ class KeypointWriter(rep.Writer):
 
         # write rgb image
         image_path = f"rgb_{self._frame_id}.{self._image_output_format}"
-        self._backend.write_image(image_path, postProcessedImage)
+        cropped = self.cropImageToScale(data)
+        self._backend.write_image(image_path, cropped)
 
         # depth_path = f"depth_{self._frame_id}.{self._image_output_format}"
         # self._backend.write_image(depth_path, data["distance_to_camera"])
@@ -162,38 +163,47 @@ class KeypointWriter(rep.Writer):
                 if vBottom < vTop:
                     # swap
                     projected_keypoints[topClass], projected_keypoints[bottomClass] = projected_keypoints[topClass], projected_keypoints[bottomClass]
-
-    def makePostProcessedRGB(self, data):
-        # Setup data for and invoke post processing
-
-        # flatten the data before using it with warp since we don't care about x,y and this simplifies the logic
-        # to access a given pixel
-        rgb_flattened = data["rgb"].reshape(-1, 4).astype(np.float32)
-        rgb_flattened /= 255.0
-        depth_flattened = data["distance_to_camera"].reshape(-1).astype(np.float32)
-        rgb_in = wp.from_numpy(rgb_flattened, dtype=wp.vec4)
-        depth_in = wp.from_numpy(depth_flattened, dtype=float)
-        rgb_out = wp.zeros_like(rgb_in)
-
-        # Launch the kernel
-        wp.launch(kernel=recolor_kernel, 
-                  dim=len(rgb_in), 
-                  inputs=[rgb_in, depth_in, rgb_out])
-
-        # reshape and format into rgb image
-        processed_rgb_out = (rgb_out.numpy() * 255.0).reshape((config.HEIGHT, config.WIDTH, 4))
-        np.clip(processed_rgb_out, 0.0, 255.0)
-        return processed_rgb_out.astype(np.uint8)
-
-# a warp kernel to recolor images to apply the underwater effect
-@wp.kernel
-def recolor_kernel(rgb: wp.array(dtype=wp.vec4), 
-                   depth: wp.array(dtype=float), 
-                   out_rgb: wp.array(dtype=wp.vec4)
-                   ):
-    tid = wp.tid()
     
-    out_rgb[tid] = rgb[tid]
+    def getCroppedSize(self):
+        # the size of the image after zooming in to remove fisheye ring,
+        # basically the side length of the square inscribed by that ring
+        return (self._image_radius * 1.414)
+    
+    def fullToCroppedValue(self, value):    
+        # S is scaled size
+        S = self.getCroppedSize() 
+        W = self.img_w # full original image size
+        
+        # The left edge of crop in normalized coordinates
+        uv_min = (W - S) / (2 * W)
+        
+        # The total span of the crop in normalized units
+        uv_span = S / W
+        
+        # Transform
+        scaledValue = (value - uv_min) / uv_span
+        
+        return scaledValue
+
+    def fullToCroppedPoint(self, point):
+        u, v = point # Normalized 0.0 to 1.0
+        return (self.fullToCroppedValue(u), self.fullToCroppedValue(v))
+    
+    def rescaleFullToCropped(self, value):
+        # just rescales the value, but does not take the fact that the minimum has changed into account
+        return value * (self.img_w / self.getCroppedSize())
+
+    def cropImageToScale(self, data):
+        img_array = data["rgb"]
+            
+        crop_h, crop_w = 858, 858
+                
+        start_x = self.img_w // 2 - crop_w // 2
+        start_y = self.img_h // 2 - crop_h // 2
+        
+        cropped_img = img_array[start_y:start_y+crop_h, start_x:start_x+crop_w]
+
+        return cropped_img
 
 # Projects using OpenCV fisheye parameters in camera_params
 def fisheye_project(camera_params, img_w, img_h, world_pos, camera_prim):

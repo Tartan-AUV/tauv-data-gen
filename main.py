@@ -8,6 +8,7 @@ from pathlib import Path
 import random
 from types import SimpleNamespace
 from sys import argv
+import math
 
 # standard_replicator_script.py
 from isaacsim import SimulationApp
@@ -63,7 +64,8 @@ def generate_data():
         camera = rep.create.camera(position=(0, 0, 0), look_at=(0, 0, 2))
         camera_paths = rep.utils.get_node_targets(camera.node, "inputs:prims")
         actual_camera_path = camera_paths[0] if camera_paths else "/Replicator/Camera_Xform/Camera"
-        camera_setup(camera)
+        image_radius = camera_setup(camera)
+        print("image_radius " + str(image_radius))
 
         render_product = rep.create.render_product(camera, (config.WIDTH, config.HEIGHT))
 
@@ -81,12 +83,12 @@ def generate_data():
                 with all_models:
                     # Randomize positions and rotations
                     rep.modify.pose(
-                        position=rep.distribution.uniform((-3, -3, 0), (3, 3, 0)),
+                        position=rep.distribution.uniform((-3, -3, -4.5), (3, 3, -4)),
                         rotation=rep.distribution.uniform((0, 0, 0), (360, 360, 360))
                     )
                 with camera:
                     rep.modify.pose(
-                        position=rep.distribution.uniform((-8, -8, -2.5), (8, 8, 0)),
+                        position=rep.distribution.uniform((-8, -8, -3.5), (8, 8, -2)),
                         look_at=rep.distribution.uniform((-2, -2, -2), (2, 2, 2))
                     )
 
@@ -96,7 +98,8 @@ def generate_data():
         writer.initialize(
             output_dir=output_dir, 
             camera_path=actual_camera_path, 
-            image_output_format="png"
+            image_output_format="png",
+            image_radius=image_radius
         )
         writer.attach([render_product])
 
@@ -139,7 +142,7 @@ def lerp(a, b, t):
     return a + (b-a)*t
 
 def randomizeWaterShader(waterShader):
-    volumeAbsorption = lerp(0, 0.05, random.uniform(0, 1)**4)
+    volumeAbsorption = lerp(0.01, 0.035, random.uniform(0, 1)**3)
     transmissionRGB = (random.uniform(0.5, 0.7), random.uniform(0.6, 0.9), random.uniform(0.6, 0.95))
     reflectionRGB = (random.uniform(0.85, 1), random.uniform(0.9, 1.0), random.uniform(0.95, 1.0))
     set_unique_attribute(waterShader, "inputs:depth", Sdf.ValueTypeNames.Float, volumeAbsorption)
@@ -183,7 +186,8 @@ def load_objects():
     return modelRepItems
 
 def setup_water():
-    water = rep.create.cube(scale=(22.8, 49.5, 0.5), position=(0, 0, 0))
+    # based on size of pool model
+    water = rep.create.cube(scale=(22.8 * 3, 49.5 * 3, 0.5 * 3), position=(0, 0, 0))
     
     material_file_path = os.path.abspath("./water_material/Water/Water.mdl")
 
@@ -206,7 +210,7 @@ def createLights():
     stage = omni.usd.get_context().get_stage()
     distant_path = "/World/DistantLight"
     distant_light = UsdLux.DistantLight.Define(stage, distant_path)
-    distant_light.CreateIntensityAttr(1050.0)
+    distant_light.CreateIntensityAttr(1450.0)
     distant_light.CreateColorAttr((1.0, 1.0, 0.95))
     prim = stage.GetPrimAtPath(distant_path)
     UsdGeom.XformCommonAPI(prim).SetRotate((315.0, 0.0, 0.0))
@@ -214,7 +218,7 @@ def createLights():
 
     ambient_path = "/World/AmbientLight"
     dome_light = UsdLux.DomeLight.Define(stage, ambient_path)
-    dome_light.CreateIntensityAttr(250.0)
+    dome_light.CreateIntensityAttr(450.0)
     dome_light.CreateColorAttr((1.0, 1.0, 0.95))
     skyPath = os.path.abspath("./skyboxes/evening_road_01_4k.hdr")
     dome_light.CreateTextureFileAttr(Sdf.AssetPath(skyPath))
@@ -226,6 +230,8 @@ def camera_setup(camera):
         # setup the camera (these are currently arbitrary, we will update once we have the actual camera calibration info)
         rep.modify.attribute("projection", "perspective")
         rep.modify.attribute("cameraProjectionType", "fisheyeOpenCV")
+
+        rep.modify.attribute("fthetaMaxFov", 180)
 
         rep.modify.attribute("fthetaWidth", config.WIDTH)
         rep.modify.attribute("fthetaHeight", config.HEIGHT)
@@ -242,6 +248,13 @@ def camera_setup(camera):
         rep.modify.attribute("verticalApertureOffset", 0.0)
         
         rep.modify.attribute("focalLength", 12.0)
+
+        rep.modify.attribute("fthetaPolyA", 0.0) # Primary radial distortion
+        rep.modify.attribute("fthetaPolyB", 0.0)
+        rep.modify.attribute("fthetaPolyC", 0.0)
+        rep.modify.attribute("fthetaPolyD", 0.0)
+
+    return (386.6) * (180.0 * (math.pi/360)) # The radius of the image = focal length * FOV in radians
 
 def main():
     config.init()
