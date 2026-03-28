@@ -58,7 +58,7 @@ def generate_data():
     layer = rep.new_layer()
 
     if not config.debug:
-        rep.settings.set_render_pathtraced(samples_per_pixel=16)
+        rep.settings.set_render_pathtraced(samples_per_pixel=32)
 
     with layer:
         camera = rep.create.camera(position=(0, 0, 0), look_at=(0, 0, 2))
@@ -119,6 +119,9 @@ def generate_data():
             randomizeTextures(modelRepItems)
 
             randomizeWaterShader(waterShader)
+
+            if config.randomizeEnvironment:
+                randomizeEnvironment()
             
             print(f"Captured Frame {i}")
 
@@ -210,7 +213,7 @@ def createLights():
     stage = omni.usd.get_context().get_stage()
     distant_path = "/World/DistantLight"
     distant_light = UsdLux.DistantLight.Define(stage, distant_path)
-    distant_light.CreateIntensityAttr(1450.0)
+    distant_light.CreateIntensityAttr(2050.0)
     distant_light.CreateColorAttr((1.0, 1.0, 0.95))
     prim = stage.GetPrimAtPath(distant_path)
     UsdGeom.XformCommonAPI(prim).SetRotate((315.0, 0.0, 0.0))
@@ -218,7 +221,7 @@ def createLights():
 
     ambient_path = "/World/AmbientLight"
     dome_light = UsdLux.DomeLight.Define(stage, ambient_path)
-    dome_light.CreateIntensityAttr(450.0)
+    dome_light.CreateIntensityAttr(1250.0)
     dome_light.CreateColorAttr((1.0, 1.0, 0.95))
     skyPath = os.path.abspath("./skyboxes/evening_road_01_4k.hdr")
     dome_light.CreateTextureFileAttr(Sdf.AssetPath(skyPath))
@@ -255,6 +258,33 @@ def camera_setup(camera):
         rep.modify.attribute("fthetaPolyD", 0.0)
 
     return (386.6) * (180.0 * (math.pi/360)) # The radius of the image = focal length * FOV in radians
+
+def randomizeEnvironment():
+    # this is pretty bad, but I just want to test model results on more randomized data right now
+    # We'll make this functionality more customizable and accessible in config.json later
+    
+    dome_light = repConversions.path_to_prim("/World/AmbientLight")
+    pool_mat_texture_1 = repConversions.path_to_prim("/Replicator/test_Xform/test/_materials/Material_002/Image_Texture")
+    pool_mat_texture_2 = repConversions.path_to_prim("/Replicator/test_Xform/test/_materials/Material_003/Image_Texture")
+    pool_mat_texture_3 = repConversions.path_to_prim("/Replicator/test_Xform/test/_materials/Material_004/Image_Texture")
+    pool_bottom_mat = repConversions.path_to_prim("/Replicator/test_Xform/test/_materials/Material_002/Principled_BSDF")
+
+    randomSkyboxTexture = os.path.abspath("./textures/randomTextures/" + random.choice(os.listdir("./textures/randomTextures")))
+    randomPoolTexture1 = os.path.abspath("./textures/randomTextures/" + random.choice(os.listdir("./textures/randomTextures")))
+    randomPoolTexture2 = os.path.abspath("./textures/randomTextures/" + random.choice(os.listdir("./textures/randomTextures")))
+    randomPoolTexture3 = os.path.abspath("./textures/randomTextures/" + random.choice(os.listdir("./textures/randomTextures")))
+    
+    set_unique_attribute(dome_light, "inputs:texture:file", Sdf.ValueTypeNames.Asset, Sdf.AssetPath(randomSkyboxTexture))
+    set_unique_attribute(pool_mat_texture_1, "inputs:file", Sdf.ValueTypeNames.Asset, Sdf.AssetPath(randomPoolTexture1))
+    set_unique_attribute(pool_mat_texture_2, "inputs:file", Sdf.ValueTypeNames.Asset, Sdf.AssetPath(randomPoolTexture2))
+    set_unique_attribute(pool_mat_texture_3, "inputs:file", Sdf.ValueTypeNames.Asset, Sdf.AssetPath(randomPoolTexture3))
+
+    # make the bottom of the pool "brighter"
+    set_unique_attribute(pool_bottom_mat, "inputs:metallic", Sdf.ValueTypeNames.Float, 0.15)
+    set_unique_attribute(pool_bottom_mat, "inputs:roughness", Sdf.ValueTypeNames.Float, 0.15)
+    # it's slightly glowing but whatever
+    set_unique_attribute(pool_bottom_mat, "inputs:emissiveColor", Sdf.ValueTypeNames.Float3, (0.05,0.05,0.05))
+
 
 def main():
     config.init()

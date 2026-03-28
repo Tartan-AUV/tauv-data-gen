@@ -21,6 +21,8 @@ enivronmentObjectsToLoad = []
 
 textureVariants = {} # class name -> material name -> textures which can be used with it
 
+randomizeEnvironment = False
+
 simulation_app = None
 debug = False
 
@@ -39,6 +41,7 @@ def init():
     global enivronmentObjectsToLoad
     global textureVariants
     global simulation_app
+    global randomizeEnvironment
 
     WIDTH = 1024
     HEIGHT = 1024
@@ -53,3 +56,4 @@ def init():
     objectsToLoad = []
     enivronmentObjectsToLoad = []
     textureVariants = {}
+    randomizeEnvironment = False

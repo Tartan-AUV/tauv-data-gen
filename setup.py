@@ -205,5 +205,8 @@ def load_config(configFile="./config.json"):
                 scale = tuple(envObj["scale"])
             
             config.enivronmentObjectsToLoad.append((os.path.abspath(path), position, euler, scale))
+    
+    if "randomizeEnvironment" in jsonParse:
+        config.randomizeEnvironment = jsonParse["randomizeEnvironment"]
 
     return True

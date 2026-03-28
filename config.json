@@ -1,5 +1,5 @@
 {
-    "frames" : 400,
+    "frames" : 600,
     "maxKeypoints" : 12,
     "objects" :
     [
@@ -16,5 +16,7 @@
             "euler" : [0.0, 0.0, 0.0],
             "scale" : [3.0, 3.0, 3.0]
         }
-    ]
+    ],
+
+    "randomizeEnvironment" : true
 }

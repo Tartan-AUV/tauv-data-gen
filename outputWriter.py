@@ -75,7 +75,15 @@ class KeypointWriter(rep.Writer):
                     continue
 
                 class_id = config.classNameToID[class_name]
-                f.write(f"{class_id} {(self.fullToCroppedValue(x_center)):.6f} {(self.fullToCroppedValue(y_center)):.6f} {(self.rescaleFullToCropped(w)):.6f} {(self.rescaleFullToCropped(h)):.6f} ")
+                cropped_x = self.fullToCroppedValue(x_center)
+                cropped_y = self.fullToCroppedValue(y_center)
+                cropped_w = self.rescaleFullToCropped(w)
+                cropped_h = self.rescaleFullToCropped(h)
+
+                if(self.get_visible_fraction(cropped_x, cropped_y, cropped_w, cropped_h) > 0.3):
+                    f.write(f"{class_id} {cropped_x:.6f} {cropped_y:.6f} {cropped_w:.6f} {cropped_h:.6f} ")
+                else:
+                    continue
 
                 parent_path = bbox_paths[i]
                 parent_prim = self.stage.GetPrimAtPath(parent_path)
@@ -118,6 +126,35 @@ class KeypointWriter(rep.Writer):
         # depth_path = f"depth_{self._frame_id}.{self._image_output_format}"
         # self._backend.write_image(depth_path, data["distance_to_camera"])
         self._frame_id += 1
+    
+    def get_visible_fraction(self, x, y, w, h):
+        # 1. Get corners of the box in the CROPPED coordinate space
+        # (These values might be < 0 or > 1)
+        x1, y1 = x - w/2, y - h/2
+        x2, y2 = x + w/2, y + h/2
+
+        # 2. Calculate the "Ideal" area (before clipping)
+        full_area = w * h
+        if full_area <= 0:
+            return 0
+
+        # 3. Clip the corners to the visible frame [0, 1]
+        x1_visible = max(0, min(1, x1))
+        y1_visible = max(0, min(1, y1))
+        x2_visible = max(0, min(1, x2))
+        y2_visible = max(0, min(1, y2))
+
+        # 4. Calculate the visible area
+        visible_width = x2_visible - x1_visible
+        visible_height = y2_visible - y1_visible
+        
+        if visible_width <= 0 or visible_height <= 0:
+            return 0
+            
+        visible_area = visible_width * visible_height
+        
+        # 5. Return the fraction of the box that is actually inside the image
+        return visible_area / full_area
     
     def handlePotentialKeypoint(self, class_name, child_prim, projected_keypoints):
         # skip non xforms and non keypoints

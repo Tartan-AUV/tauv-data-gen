@@ -17,12 +17,17 @@ def set_unique_attribute(prim, attribute, type, value):
     if not prim:
         return
 
-    if not prim.HasAttribute(attribute):
-        prim.CreateAttribute(attribute, type)
+    # Get the session layer where Replicator usually holds its overrides
+    stage = prim.GetStage()
+    session_layer = stage.GetSessionLayer()
 
-    attr = prim.GetAttribute(attribute)
-    attr.Clear()
-    attr.Set(value)
+    # Use an EditContext to force the write into the Session Layer
+    with Usd.EditContext(stage, session_layer):
+        if not prim.HasAttribute(attribute):
+            prim.CreateAttribute(attribute, type)
+        
+        attr = prim.GetAttribute(attribute)
+        attr.Set(value)
 
 def get_attribute(prim, attribute):
     return prim.GetAttribute(attribute).Get()
