@@ -148,7 +148,8 @@ def load_environment_objects():
             position=position,
             rotation=euler,
             scale=scale,
-            name="test"
+            name="test",
+            parent=config.environmentParent
         )
         with repItem:
             rep.modify.semantics([('class', f"environmentObject")], mode='clear')
@@ -205,5 +206,13 @@ def load_config(configFile="./config.json"):
                 scale = tuple(envObj["scale"])
             
             config.enivronmentObjectsToLoad.append((os.path.abspath(path), position, euler, scale))
+    
+    config.originRangeLow = (0.0, 0.0, 0.0)
+    config.originRangeHigh = (0.0, 0.0, 0.0)
+    if "originRange" in jsonParse:
+        if("low" in jsonParse["originRange"]):
+            config.originRangeLow = tuple(jsonParse["originRange"]["low"])
+        if("high" in jsonParse["originRange"]):
+            config.originRangeHigh = tuple(jsonParse["originRange"]["high"])
 
     return True

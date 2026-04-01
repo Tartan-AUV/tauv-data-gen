@@ -75,7 +75,15 @@ class KeypointWriter(rep.Writer):
                     continue
 
                 class_id = config.classNameToID[class_name]
-                f.write(f"{class_id} {(self.fullToCroppedValue(x_center)):.6f} {(self.fullToCroppedValue(y_center)):.6f} {(self.rescaleFullToCropped(w)):.6f} {(self.rescaleFullToCropped(h)):.6f} ")
+                
+                cropped_x = self.fullToCroppedValue(x_center)
+                cropped_y = self.fullToCroppedValue(y_center)
+                cropped_w = self.rescaleFullToCropped(w)
+                cropped_h = self.rescaleFullToCropped(h)
+                if(self.get_visible_fraction(cropped_x, cropped_y, cropped_w, cropped_h) > 0.3):
+                    f.write(f"{class_id} {(cropped_x):.6f} {(cropped_y):.6f} {(cropped_w):.6f} {(cropped_h):.6f} ")
+                else:
+                    continue
 
                 parent_path = bbox_paths[i]
                 parent_prim = self.stage.GetPrimAtPath(parent_path)
@@ -204,6 +212,35 @@ class KeypointWriter(rep.Writer):
         cropped_img = img_array[start_y:start_y+crop_h, start_x:start_x+crop_w]
 
         return cropped_img
+    
+    def get_visible_fraction(self, x, y, w, h):
+        # 1. Get corners of the box in the CROPPED coordinate space
+        # (These values might be < 0 or > 1)
+        x1, y1 = x - w/2, y - h/2
+        x2, y2 = x + w/2, y + h/2
+
+        # 2. Calculate the "Ideal" area (before clipping)
+        full_area = w * h
+        if full_area <= 0:
+            return 0
+
+        # 3. Clip the corners to the visible frame [0, 1]
+        x1_visible = max(0, min(1, x1))
+        y1_visible = max(0, min(1, y1))
+        x2_visible = max(0, min(1, x2))
+        y2_visible = max(0, min(1, y2))
+
+        # 4. Calculate the visible area
+        visible_width = x2_visible - x1_visible
+        visible_height = y2_visible - y1_visible
+        
+        if visible_width <= 0 or visible_height <= 0:
+            return 0
+            
+        visible_area = visible_width * visible_height
+        
+        # 5. Return the fraction of the box that is actually inside the image
+        return visible_area / full_area
 
 # Projects using OpenCV fisheye parameters in camera_params
 def fisheye_project(camera_params, img_w, img_h, world_pos, camera_prim):

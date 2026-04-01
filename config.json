@@ -1,6 +1,6 @@
 {
     "frames" : 400,
-    "maxKeypoints" : 12,
+    "maxKeypoints" : 6,
     "objects" :
     [
         {
@@ -16,5 +16,10 @@
             "euler" : [0.0, 0.0, 0.0],
             "scale" : [3.0, 3.0, 3.0]
         }
-    ]
+    ],
+
+    "originRange" : {
+        "low" : [-15, -55, 0],
+        "high" : [15, 10, 0]
+    }
 }

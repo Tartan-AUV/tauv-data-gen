@@ -61,6 +61,8 @@ def generate_data():
         rep.settings.set_render_pathtraced(samples_per_pixel=16)
 
     with layer:
+        config.environmentParent = rep.create.xform()
+
         camera = rep.create.camera(position=(0, 0, 0), look_at=(0, 0, 2))
         camera_paths = rep.utils.get_node_targets(camera.node, "inputs:prims")
         actual_camera_path = camera_paths[0] if camera_paths else "/Replicator/Camera_Xform/Camera"
@@ -75,22 +77,30 @@ def generate_data():
         water, waterShader = setup_water()
 
         all_models = rep.create.group(modelRepItems)
+        
         environment_models = rep.create.group(environmentObjects)
 
         # specify behavior per frame
-        if not config.debug:
-            with rep.trigger.on_frame(max_execs=config.frameCount):
-                with all_models:
-                    # Randomize positions and rotations
-                    rep.modify.pose(
-                        position=rep.distribution.uniform((-3, -3, -4.5), (3, 3, -4)),
-                        rotation=rep.distribution.uniform((0, 0, 0), (360, 360, 360))
+        with rep.trigger.on_frame(max_execs=config.frameCount):
+            with config.environmentParent:
+                rep.modify.pose(
+                    position=rep.distribution.uniform(
+                        (config.originRangeLow[0], config.originRangeLow[1], config.originRangeLow[2]),
+                        (config.originRangeHigh[0], config.originRangeHigh[1], config.originRangeHigh[2])
                     )
-                with camera:
-                    rep.modify.pose(
-                        position=rep.distribution.uniform((-8, -8, -3.5), (8, 8, -2)),
-                        look_at=rep.distribution.uniform((-2, -2, -2), (2, 2, 2))
-                    )
+                )
+
+            with all_models:                 
+                # Randomize positions and rotations
+                rep.modify.pose(
+                    position=rep.distribution.uniform((-3, -3, -4.5), (3, 3, -4)),
+                    rotation=rep.distribution.uniform((0, 0, 0), (360, 360, 360))
+                )
+            with camera:
+                rep.modify.pose(
+                    position=rep.distribution.uniform((-8, -8, -3.5), (8, 8, -2)),
+                    look_at=rep.distribution.uniform((-2, -2, -2), (2, 2, 2))
+                )
 
         # Initialize and attach writer
         output_dir = os.path.abspath("./output")
@@ -142,7 +152,7 @@ def lerp(a, b, t):
     return a + (b-a)*t
 
 def randomizeWaterShader(waterShader):
-    volumeAbsorption = lerp(0.01, 0.035, random.uniform(0, 1)**3)
+    volumeAbsorption = lerp(0.015, 0.035, random.uniform(0, 1)**3)
     transmissionRGB = (random.uniform(0.5, 0.7), random.uniform(0.6, 0.9), random.uniform(0.6, 0.95))
     reflectionRGB = (random.uniform(0.85, 1), random.uniform(0.9, 1.0), random.uniform(0.95, 1.0))
     set_unique_attribute(waterShader, "inputs:depth", Sdf.ValueTypeNames.Float, volumeAbsorption)
@@ -187,7 +197,7 @@ def load_objects():
 
 def setup_water():
     # based on size of pool model
-    water = rep.create.cube(scale=(22.8 * 3, 49.5 * 3, 0.5 * 3), position=(0, 0, 0))
+    water = rep.create.cube(scale=(22.8 * 3, 49.5 * 3, 0.5 * 3), position=(0, 0, 0), parent=config.environmentParent)
     
     material_file_path = os.path.abspath("./water_material/Water/Water.mdl")
 
@@ -210,7 +220,7 @@ def createLights():
     stage = omni.usd.get_context().get_stage()
     distant_path = "/World/DistantLight"
     distant_light = UsdLux.DistantLight.Define(stage, distant_path)
-    distant_light.CreateIntensityAttr(1450.0)
+    distant_light.CreateIntensityAttr(1700.0)
     distant_light.CreateColorAttr((1.0, 1.0, 0.95))
     prim = stage.GetPrimAtPath(distant_path)
     UsdGeom.XformCommonAPI(prim).SetRotate((315.0, 0.0, 0.0))
@@ -218,7 +228,7 @@ def createLights():
 
     ambient_path = "/World/AmbientLight"
     dome_light = UsdLux.DomeLight.Define(stage, ambient_path)
-    dome_light.CreateIntensityAttr(450.0)
+    dome_light.CreateIntensityAttr(700.0)
     dome_light.CreateColorAttr((1.0, 1.0, 0.95))
     skyPath = os.path.abspath("./skyboxes/evening_road_01_4k.hdr")
     dome_light.CreateTextureFileAttr(Sdf.AssetPath(skyPath))

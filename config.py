@@ -21,6 +21,11 @@ enivronmentObjectsToLoad = []
 
 textureVariants = {} # class name -> material name -> textures which can be used with it
 
+originRangeLow = (0.0, 0.0, 0.0)
+originRangeHigh = (0.0, 0.0, 0.0)
+
+environmentParent = None
+
 simulation_app = None
 debug = False
 
@@ -39,6 +44,9 @@ def init():
     global enivronmentObjectsToLoad
     global textureVariants
     global simulation_app
+    global originRangeLow
+    global originRangeHigh
+    global environmentParent
 
     WIDTH = 1024
     HEIGHT = 1024
@@ -53,3 +61,7 @@ def init():
     objectsToLoad = []
     enivronmentObjectsToLoad = []
     textureVariants = {}
+    environmentParent = None
+
+    originRangeLow = (0.0, 0.0, 0.0)
+    originRangeHigh = (0.0, 0.0, 0.0)
