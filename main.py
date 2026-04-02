@@ -128,7 +128,7 @@ def generate_data():
 
             randomizeTextures(modelRepItems)
 
-            randomizeWaterShader(waterShader)
+            randomizeWaterShader(waterShader, writer)
             
             print(f"Captured Frame {i}")
 
@@ -151,13 +151,20 @@ def randomizeTextures(modelRepItems):
 def lerp(a, b, t):
     return a + (b-a)*t
 
-def randomizeWaterShader(waterShader):
+def randomizeWaterShader(waterShader, writer):
     volumeAbsorption = lerp(0.015, 0.035, random.uniform(0, 1)**3)
     transmissionRGB = (random.uniform(0.5, 0.7), random.uniform(0.6, 0.9), random.uniform(0.6, 0.95))
     reflectionRGB = (random.uniform(0.85, 1), random.uniform(0.9, 1.0), random.uniform(0.95, 1.0))
     set_unique_attribute(waterShader, "inputs:depth", Sdf.ValueTypeNames.Float, volumeAbsorption)
     set_unique_attribute(waterShader, "inputs:transmission_color", Sdf.ValueTypeNames.Float3, transmissionRGB)
     set_unique_attribute(waterShader, "inputs:reflection_color", Sdf.ValueTypeNames.Float3, reflectionRGB)
+
+    writer.redRandAttenuate = random.uniform(0.05/2, 0.06*(2/3))
+    writer.greenRandAttenuate = random.uniform(0.05/2, 0.07*(2/3))
+    writer.blueRandAttenuate = random.uniform(0.045/2, 0.065*(2/3))
+    writer.redRandWaterColor = transmissionRGB[0]/3
+    writer.greenRandWaterColor = transmissionRGB[1]/3
+    writer.blueRandWaterColor = transmissionRGB[2]/3
 
 def load_objects():
     # load all the models

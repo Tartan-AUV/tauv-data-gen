@@ -40,6 +40,13 @@ class KeypointWriter(rep.Writer):
         
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
+
+        self.redRandAttenuate = random.uniform(0.10, 0.16)
+        self.greenRandAttenuate = random.uniform(0.10, 0.14)
+        self.blueRandAttenuate = random.uniform(0.09, 0.13)
+        self.redRandWaterColor = random.uniform(0.05, 0.15)
+        self.greenRandWaterColor = random.uniform(0.1, 0.35)
+        self.blueRandWaterColor = random.uniform(0.3, 0.45)
             
         self._backend = BackendDispatch({"paths": {"out_dir": output_dir}})
     
@@ -120,8 +127,10 @@ class KeypointWriter(rep.Writer):
 
         # write rgb image
         image_path = f"rgb_{self._frame_id}.{self._image_output_format}"
-        cropped = self.cropImageToScale(data)
-        self._backend.write_image(image_path, cropped)
+        cropped = self.cropImageToScale(data["rgb"])
+        depthCropped = self.cropImageToScale(data["distance_to_camera"])
+        cropped_post_processed = self.makePostProcessedRGB(cropped, depthCropped)
+        self._backend.write_image(image_path, cropped_post_processed)
 
         # depth_path = f"depth_{self._frame_id}.{self._image_output_format}"
         # self._backend.write_image(depth_path, data["distance_to_camera"])
@@ -201,15 +210,13 @@ class KeypointWriter(rep.Writer):
         # just rescales the value, but does not take the fact that the minimum has changed into account
         return value * (self.img_w / self.getCroppedSize())
 
-    def cropImageToScale(self, data):
-        img_array = data["rgb"]
-            
+    def cropImageToScale(self, image):            
         crop_h, crop_w = 858, 858
                 
         start_x = self.img_w // 2 - crop_w // 2
         start_y = self.img_h // 2 - crop_h // 2
         
-        cropped_img = img_array[start_y:start_y+crop_h, start_x:start_x+crop_w]
+        cropped_img = image[start_y:start_y+crop_h, start_x:start_x+crop_w]
 
         return cropped_img
     
@@ -241,6 +248,55 @@ class KeypointWriter(rep.Writer):
         
         # 5. Return the fraction of the box that is actually inside the image
         return visible_area / full_area
+    
+    def makePostProcessedRGB(self, colorImage, depthImage):
+        # post process with depth effect
+
+        # flatten the data before using it with warp since we don't care about x,y and this simplifies the logic
+        # to access a given pixel
+        rgb_flattened = colorImage.reshape(-1, 4).astype(np.float32)
+        rgb_flattened /= 255.0
+        depth_flattened = depthImage.reshape(-1).astype(np.float32)
+        rgb_in = wp.from_numpy(rgb_flattened, dtype=wp.vec4)
+        depth_in = wp.from_numpy(depth_flattened, dtype=float)
+        rgb_out = wp.zeros_like(rgb_in)
+
+        # Launch the kernel
+        wp.launch(kernel=recolor_kernel, 
+                  dim=len(rgb_in), 
+                  inputs=[rgb_in, depth_in, rgb_out, self.redRandAttenuate, self.greenRandAttenuate, self.blueRandAttenuate, self.redRandWaterColor, self.greenRandWaterColor, self.blueRandWaterColor])
+
+        # reshape and format into rgb image
+        crop_h, crop_w = 858, 858
+        processed_rgb_out = (rgb_out.numpy() * 255.0).reshape((crop_w, crop_h, 4))
+        np.clip(processed_rgb_out, 0.0, 255.0)
+        return processed_rgb_out.astype(np.uint8)
+    
+# a warp kernel to recolor images to apply the underwater effect
+@wp.kernel
+def recolor_kernel(rgb: wp.array(dtype=wp.vec4), 
+                   depth: wp.array(dtype=float), 
+                   out_rgb: wp.array(dtype=wp.vec4),
+                   attenuationR: float,
+                   attenuationG: float,
+                   attenuationB: float,
+                   finalR: float,
+                   finalG: float,
+                   finalB: float):
+    # Underwater image recoloring based on https://arxiv.org/html/2503.01074v2
+
+    tid = wp.tid()
+    
+    depthToPixel = depth[tid]
+    rWeight = wp.exp(-attenuationR * depthToPixel)
+    gWeight = wp.exp(-attenuationG * depthToPixel)
+    bWeight = wp.exp(-attenuationB * depthToPixel)
+
+    out_rgb[tid][0] = rgb[tid][0]*rWeight + finalR*(1.0-rWeight)
+    out_rgb[tid][1] = rgb[tid][1]*gWeight + finalG*(1.0-gWeight)
+    out_rgb[tid][2] = rgb[tid][2]*bWeight + finalB*(1.0-bWeight)
+ 
+    out_rgb[tid][3] = 1.0
 
 # Projects using OpenCV fisheye parameters in camera_params
 def fisheye_project(camera_params, img_w, img_h, world_pos, camera_prim):
