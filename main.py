@@ -80,6 +80,16 @@ def generate_data():
         
         environment_models = rep.create.group(environmentObjects)
 
+        # load distractors
+        distractorObjectList = []
+        for usdFile in ([f for f in os.listdir("./distractorObjects") if f.endswith('.usdc') or f.endswith('.usdz')]):
+            repItem = rep.create.from_usd(
+                usd=os.path.abspath(f"./distractorObjects/{usdFile}"),
+            )
+            distractorObjectList.append(repItem)
+        
+        distractorGroup = rep.create.group(distractorObjectList)
+
         # specify behavior per frame
         with rep.trigger.on_frame(max_execs=config.frameCount):
             with config.environmentParent:
@@ -95,6 +105,12 @@ def generate_data():
                 rep.modify.pose(
                     position=rep.distribution.uniform((-3, -3, -4.5), (3, 3, -4)),
                     rotation=rep.distribution.uniform((0, 0, 0), (360, 360, 360))
+                )
+            with distractorGroup:
+                rep.modify.pose(
+                    position=rep.distribution.uniform((-8, -8, -4.5), (8, 8, -4)),
+                    rotation=rep.distribution.uniform((0, 0, 0), (360, 360, 360)),
+                    scale=rep.distribution.uniform((0.8,0.8,0.8),(1.4,1.4,1.4))
                 )
             with camera:
                 rep.modify.pose(
@@ -153,7 +169,7 @@ def lerp(a, b, t):
 
 def randomizeWaterShader(waterShader, writer):
     volumeAbsorption = lerp(0.015, 0.035, random.uniform(0, 1)**3)
-    transmissionRGB = (random.uniform(0.5, 0.7), random.uniform(0.6, 0.9), random.uniform(0.6, 0.95))
+    transmissionRGB = (random.uniform(0.4, 0.55), random.uniform(0.6, 0.9), random.uniform(0.6, 0.95))
     reflectionRGB = (random.uniform(0.85, 1), random.uniform(0.9, 1.0), random.uniform(0.95, 1.0))
     set_unique_attribute(waterShader, "inputs:depth", Sdf.ValueTypeNames.Float, volumeAbsorption)
     set_unique_attribute(waterShader, "inputs:transmission_color", Sdf.ValueTypeNames.Float3, transmissionRGB)
@@ -227,7 +243,7 @@ def createLights():
     stage = omni.usd.get_context().get_stage()
     distant_path = "/World/DistantLight"
     distant_light = UsdLux.DistantLight.Define(stage, distant_path)
-    distant_light.CreateIntensityAttr(1700.0)
+    distant_light.CreateIntensityAttr(1750.0)
     distant_light.CreateColorAttr((1.0, 1.0, 0.95))
     prim = stage.GetPrimAtPath(distant_path)
     UsdGeom.XformCommonAPI(prim).SetRotate((315.0, 0.0, 0.0))
@@ -235,12 +251,11 @@ def createLights():
 
     ambient_path = "/World/AmbientLight"
     dome_light = UsdLux.DomeLight.Define(stage, ambient_path)
-    dome_light.CreateIntensityAttr(700.0)
+    dome_light.CreateIntensityAttr(750.0)
     dome_light.CreateColorAttr((1.0, 1.0, 0.95))
     skyPath = os.path.abspath("./skyboxes/evening_road_01_4k.hdr")
     dome_light.CreateTextureFileAttr(Sdf.AssetPath(skyPath))
     dome_light.CreateTextureFormatAttr("latlong")
-
 
 def camera_setup(camera):
     with camera:

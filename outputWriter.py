@@ -87,7 +87,7 @@ class KeypointWriter(rep.Writer):
                 cropped_y = self.fullToCroppedValue(y_center)
                 cropped_w = self.rescaleFullToCropped(w)
                 cropped_h = self.rescaleFullToCropped(h)
-                if(self.get_visible_fraction(cropped_x, cropped_y, cropped_w, cropped_h) > 0.3):
+                if(self.get_visible_fraction(cropped_x, cropped_y, cropped_w, cropped_h) > 0.35):
                     f.write(f"{class_id} {(cropped_x):.6f} {(cropped_y):.6f} {(cropped_w):.6f} {(cropped_h):.6f} ")
                 else:
                     continue
