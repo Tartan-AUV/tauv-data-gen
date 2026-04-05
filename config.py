@@ -1,8 +1,8 @@
 maxKeypoints = 12
 frameCount = 100
 
-WIDTH = 1024
-HEIGHT = 1024
+WIDTH = 1600
+HEIGHT = 1600
 
 # Dicts to store info about keypoint symmetry,
 # each maps from the name of a keypoint to a pair representing the
@@ -25,6 +25,7 @@ originRangeLow = (0.0, 0.0, 0.0)
 originRangeHigh = (0.0, 0.0, 0.0)
 
 environmentParent = None
+randomStr = ""
 
 simulation_app = None
 debug = False
@@ -47,9 +48,10 @@ def init():
     global originRangeLow
     global originRangeHigh
     global environmentParent
+    global randomStr
 
-    WIDTH = 1024
-    HEIGHT = 1024
+    WIDTH = 1600
+    HEIGHT = 1600
     maxKeypoints = 12
     frameCount = 100
     horizontalSymmetryPairs = {}
@@ -62,6 +64,7 @@ def init():
     enivronmentObjectsToLoad = []
     textureVariants = {}
     environmentParent = None
+    randomStr = ""
 
     originRangeLow = (0.0, 0.0, 0.0)
     originRangeHigh = (0.0, 0.0, 0.0)

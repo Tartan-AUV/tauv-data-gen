@@ -24,7 +24,7 @@
     },
 
     "bottomLeftCorner_kp": {
-      "position" : [3.062, 0.00035, 0.017],
+      "position" : [3.062, -0.3, 0.017],
       "keypointID" : 2,
       "symmetryMode" : "horizontalSymmetry",
       "symmetryDetails" : {
@@ -34,7 +34,7 @@
     },
 
     "bottomRightCorner_kp": {
-      "position" : [0.01243, 0.00035, 0.017],
+      "position" : [0.01243, -0.3, 0.017],
       "keypointID" : 3,
       "symmetryMode" : "horizontalSymmetry",
       "symmetryDetails" : {
@@ -102,10 +102,8 @@
         "textures/gateSides/Sprite-0004.png",
         "textures/gateSides/Sprite-0005.png",
         "textures/gateSides/Sprite-0007.png",
-        "textures/gateSides/Sprite-0012.png",
-        "textures/gateSides/Sprite-0013.png",
-        "textures/gateSides/Sprite-0014.png",
-        "textures/gateSides/Sprite-0015.png"
+        "textures/gateSides/Sprite-0016.png",
+        "textures/gateSides/Sprite-0017.png"
       ]
     }
   ]

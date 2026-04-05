@@ -64,7 +64,7 @@ class KeypointWriter(rep.Writer):
         self.camera_prim = self.stage.GetPrimAtPath(self._camera_path)
 
         # write annotation
-        annotation_path = os.path.join(self._output_dir, f"rgb_{self._frame_id}.txt")
+        annotation_path = os.path.join(self._output_dir, f"{config.randomStr}_rgb_{self._frame_id}.txt")
         with open(annotation_path, "w") as f:
             # Loop through detected 'main' objects
             for i, bbox in enumerate(bboxes):
@@ -87,10 +87,7 @@ class KeypointWriter(rep.Writer):
                 cropped_y = self.fullToCroppedValue(y_center)
                 cropped_w = self.rescaleFullToCropped(w)
                 cropped_h = self.rescaleFullToCropped(h)
-                if(self.get_visible_fraction(cropped_x, cropped_y, cropped_w, cropped_h) > 0.35):
-                    f.write(f"{class_id} {(cropped_x):.6f} {(cropped_y):.6f} {(cropped_w):.6f} {(cropped_h):.6f} ")
-                else:
-                    continue
+                f.write(f"{class_id} {(cropped_x):.6f} {(cropped_y):.6f} {(cropped_w):.6f} {(cropped_h):.6f} ")
 
                 parent_path = bbox_paths[i]
                 parent_prim = self.stage.GetPrimAtPath(parent_path)
@@ -126,7 +123,7 @@ class KeypointWriter(rep.Writer):
         f.close()
 
         # write rgb image
-        image_path = f"rgb_{self._frame_id}.{self._image_output_format}"
+        image_path = f"{config.randomStr}_rgb_{self._frame_id}.{self._image_output_format}"
         cropped = self.cropImageToScale(data["rgb"])
         depthCropped = self.cropImageToScale(data["distance_to_camera"])
         cropped_post_processed = self.makePostProcessedRGB(cropped, depthCropped)
@@ -135,7 +132,7 @@ class KeypointWriter(rep.Writer):
         # depth_path = f"depth_{self._frame_id}.{self._image_output_format}"
         # self._backend.write_image(depth_path, data["distance_to_camera"])
         self._frame_id += 1
-    
+
     def handlePotentialKeypoint(self, class_name, child_prim, projected_keypoints):
         # skip non xforms and non keypoints
         if (not child_prim.IsA(UsdGeom.Xform)) or (not child_prim.HasAttribute("keypointName")):
@@ -211,7 +208,7 @@ class KeypointWriter(rep.Writer):
         return value * (self.img_w / self.getCroppedSize())
 
     def cropImageToScale(self, image):            
-        crop_h, crop_w = 858, 858
+        crop_h, crop_w = int(self.getCroppedSize()), int(self.getCroppedSize())
                 
         start_x = self.img_w // 2 - crop_w // 2
         start_y = self.img_h // 2 - crop_h // 2
@@ -267,7 +264,7 @@ class KeypointWriter(rep.Writer):
                   inputs=[rgb_in, depth_in, rgb_out, self.redRandAttenuate, self.greenRandAttenuate, self.blueRandAttenuate, self.redRandWaterColor, self.greenRandWaterColor, self.blueRandWaterColor])
 
         # reshape and format into rgb image
-        crop_h, crop_w = 858, 858
+        crop_h, crop_w = int(self.getCroppedSize()), int(self.getCroppedSize())
         processed_rgb_out = (rgb_out.numpy() * 255.0).reshape((crop_w, crop_h, 4))
         np.clip(processed_rgb_out, 0.0, 255.0)
         return processed_rgb_out.astype(np.uint8)

@@ -8,6 +8,7 @@ from pathlib import Path
 import random
 from types import SimpleNamespace
 from sys import argv
+from datetime import datetime
 import math
 
 # standard_replicator_script.py
@@ -67,6 +68,15 @@ def generate_data():
         camera_paths = rep.utils.get_node_targets(camera.node, "inputs:prims")
         actual_camera_path = camera_paths[0] if camera_paths else "/Replicator/Camera_Xform/Camera"
         image_radius = camera_setup(camera)
+
+        now = datetime.now()
+        config.randomStr = now.strftime("%H:%M:%S")
+        
+        rep.orchestrator.preview()
+        newImgRadius = randomizeCamera(camera)
+        image_radius = newImgRadius
+        config.simulation_app.update()
+
         print("image_radius " + str(image_radius))
 
         render_product = rep.create.render_product(camera, (config.WIDTH, config.HEIGHT))
@@ -103,8 +113,9 @@ def generate_data():
             with all_models:                 
                 # Randomize positions and rotations
                 rep.modify.pose(
-                    position=rep.distribution.uniform((-3, -3, -4.5), (3, 3, -4)),
-                    rotation=rep.distribution.uniform((0, 0, 0), (360, 360, 360))
+                    position=rep.distribution.uniform((-3, -3, -4.7), (3, 3, -4.5)),
+                    rotation=rep.distribution.uniform((0, 0, 0), (360, 360, 360)),
+                    scale=rep.distribution.uniform(0.8, 1.2)
                 )
             with distractorGroup:
                 rep.modify.pose(
@@ -140,6 +151,7 @@ def generate_data():
             
             # force a simulation update
             # This pushes the randomized poses from Replicator into the USD Stage
+
             config.simulation_app.update()
 
             randomizeTextures(modelRepItems)
@@ -177,9 +189,9 @@ def randomizeWaterShader(waterShader, writer):
 
     writer.redRandAttenuate = random.uniform(0.05/2, 0.06*(2/3))
     writer.greenRandAttenuate = random.uniform(0.05/2, 0.07*(2/3))
-    writer.blueRandAttenuate = random.uniform(0.045/2, 0.065*(2/3))
+    writer.blueRandAttenuate = random.uniform(0.05*(2/3), 0.07*(2/3))
     writer.redRandWaterColor = transmissionRGB[0]/3
-    writer.greenRandWaterColor = transmissionRGB[1]/3
+    writer.greenRandWaterColor = transmissionRGB[1]/4
     writer.blueRandWaterColor = transmissionRGB[2]/3
 
 def load_objects():
@@ -263,7 +275,7 @@ def camera_setup(camera):
         rep.modify.attribute("projection", "perspective")
         rep.modify.attribute("cameraProjectionType", "fisheyeOpenCV")
 
-        rep.modify.attribute("fthetaMaxFov", 180)
+        rep.modify.attribute("fthetaMaxFov", 150)
 
         rep.modify.attribute("fthetaWidth", config.WIDTH)
         rep.modify.attribute("fthetaHeight", config.HEIGHT)
@@ -271,7 +283,7 @@ def camera_setup(camera):
         rep.modify.attribute("fthetaCx", config.WIDTH/2)
         rep.modify.attribute("fthetaCy", config.HEIGHT/2)
         
-        rep.modify.attribute("openCVFx", 386.6) 
+        rep.modify.attribute("openCVFx", 386.6)
         rep.modify.attribute("openCVFy", 386.6)
         rep.modify.attribute("horizontalAperture", 20.955)
         rep.modify.attribute("verticalAperture", 20.955)
@@ -286,7 +298,27 @@ def camera_setup(camera):
         rep.modify.attribute("fthetaPolyC", 0.0)
         rep.modify.attribute("fthetaPolyD", 0.0)
 
-    return (386.6) * (180.0 * (math.pi/360)) # The radius of the image = focal length * FOV in radians
+    return (386.6) * (150.0 * (math.pi/360)) # The radius of the image = focal length * FOV in radians
+
+def randomizeCamera(camera):
+    print("randomizing")
+    randomFov = random.uniform(100, 200)
+    randomFocal = random.uniform(280, 480)
+    
+    with camera:
+        print("setting fov")
+        rep.modify.attribute("fthetaMaxFov", randomFov)
+        print("set fov")
+        
+        rep.modify.attribute("openCVFx", randomFocal)
+        rep.modify.attribute("openCVFy", randomFocal)
+
+        rep.modify.attribute("fthetaPolyA", random.uniform(0, 0.1)) # Primary radial distortion
+        rep.modify.attribute("fthetaPolyB", random.uniform(0, 0.1))
+        rep.modify.attribute("fthetaPolyC", 0.0)
+        rep.modify.attribute("fthetaPolyD", 0.0)
+
+    return (randomFocal) * (randomFov * (math.pi/360)) # The radius of the image = focal length * FOV in radians
 
 def main():
     config.init()
