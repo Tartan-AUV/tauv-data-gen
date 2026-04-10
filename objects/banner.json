@@ -1,0 +1,89 @@
+{
+  "classID": "1",
+  "className": "torpedo_banner",
+
+  "keypoints": {
+    "topLeftCorner_kp": {
+      "position": [-0.3048, 0.0, 0.3048],
+      "keypointID": 0,
+      "symmetryMode": "horizontalSymmetry",
+      "symmetryDetails": {
+        "side": "left",
+        "symmetricWith": "topRightCorner_kp"
+      }
+    },
+    "topRightCorner_kp": {
+      "position": [0.9144, 0.0, 0.3048],
+      "keypointID": 1,
+      "symmetryMode": "horizontalSymmetry",
+      "symmetryDetails": {
+        "side": "right",
+        "symmetricWith": "topLeftCorner_kp"
+      }
+    },
+    "bottomLeftCorner_kp": {
+      "position": [-0.3048, 0.0, -0.3048],
+      "keypointID": 2,
+      "symmetryMode": "horizontalSymmetry",
+      "symmetryDetails": {
+        "side": "left",
+        "symmetricWith": "bottomRightCorner_kp"
+      }
+    },
+    "bottomRightCorner_kp": {
+      "position": [0.9144, 0.0, -0.3048],
+      "keypointID": 3,
+      "symmetryMode": "horizontalSymmetry",
+      "symmetryDetails": {
+        "side": "right",
+        "symmetricWith": "bottomLeftCorner_kp"
+      }
+    },
+    "topLeftHole_kp": {
+      "position": [-0.03175, 0.0, 0.21463],
+      "keypointID": 4,
+      "symmetryMode": "horizontalSymmetry",
+      "symmetryDetails": {
+        "side": "left",
+        "symmetricWith": "topRightHole_kp"
+      }
+    },
+    "topRightHole_kp": {
+      "position": [0.64135, 0.0, 0.21463],
+      "keypointID": 5,
+      "symmetryMode": "horizontalSymmetry",
+      "symmetryDetails": {
+        "side": "right",
+        "symmetricWith": "topLeftHole_kp"
+      }
+    },
+    "bottomLeftHole_kp": {
+      "position": [0.11011, 0.0, -0.09182],
+      "keypointID": 6,
+      "symmetryMode": "horizontalSymmetry",
+      "symmetryDetails": {
+        "side": "left",
+        "symmetricWith": "bottomRightHole_kp"
+      }
+    },
+    "bottomRightHole_kp": {
+      "position": [0.49949, 0.0, -0.09182],
+      "keypointID": 7,
+      "symmetryMode": "horizontalSymmetry",
+      "symmetryDetails": {
+        "side": "right",
+        "symmetricWith": "bottomLeftHole_kp"
+      }
+    }
+  },
+
+  "textureVariants": [
+    {
+      "materialName": "banner_mat",
+      "availableTextures": [
+        "textures/Task04_Tagging_01.png",
+        "textures/Task04_Tagging_02.png"
+      ]
+    }
+  ]
+}

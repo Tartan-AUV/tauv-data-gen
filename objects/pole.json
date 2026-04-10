@@ -1,0 +1,24 @@
+{
+  "classID": "2",
+  "className": "slalom_pole",
+
+  "keypoints": {
+    "bottom_kp": {
+      "position": [0.0, 0.0, 0.0],
+      "keypointID": 0,
+      "symmetryMode": "none"
+    },
+    "center_kp": {
+      "position": [0.0, 0.457, 0.0],
+      "keypointID": 1,
+      "symmetryMode": "none"
+    },
+    "top_kp": {
+      "position": [0.0, 0.914, 0.0],
+      "keypointID": 2,
+      "symmetryMode": "none"
+    }
+  },
+
+  "textureVariants": []
+}
